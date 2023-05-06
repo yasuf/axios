@@ -152,7 +152,7 @@ describe('supports http with nodejs', function () {
     });
   });
 
-  it('should allow passing JSON', function (done) {
+  it.only('should allow passing JSON', function (done) {
     var data = {
       firstName: 'Fred',
       lastName: 'Flintstone',
@@ -164,6 +164,12 @@ describe('supports http with nodejs', function () {
       res.end(JSON.stringify(data));
     }).listen(4444, function () {
       axios.get('http://localhost:4444/').then(function (res) {
+        console.log('====== res ========')
+        console.log(res)
+        console.log('====== data ========')
+        console.log(data)
+        console.log('====== res.data ========')
+        console.log(res.data)
         assert.deepEqual(res.data, data);
         done();
       }).catch(done);

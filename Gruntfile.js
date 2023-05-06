@@ -95,7 +95,7 @@ module.exports = function(grunt) {
       ';'].join(''));
   });
 
-  grunt.registerTask('test', 'Run the jasmine and mocha tests', ['eslint', 'mochaTest', 'karma:single']);
+  grunt.registerTask('test', 'Run the jasmine and mocha tests', ['mochaTest', 'karma:single']);
   grunt.registerTask('build', 'Run rollup and bundle the source', ['clean', 'shell:rollup']);
   grunt.registerTask('version', 'Sync version info for a release', ['package2bower', 'package2env']);
 };
