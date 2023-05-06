@@ -1,3 +1,5 @@
+var AxiosError = require("../../lib/core/AxiosError");
+
 describe('transform', function () {
   beforeEach(function () {
     jasmine.Ajax.install();
@@ -36,6 +38,90 @@ describe('transform', function () {
       setTimeout(function () {
         expect(typeof response.data).toEqual('object');
         expect(response.data.foo).toEqual('bar');
+        done();
+      }, 100);
+    });
+  });
+
+  it('should throw a SyntaxError if JSON parsing failed and responseType is "json" if silentJSONParsing is false',
+    function (done) {
+      var thrown;
+
+      axios({
+        url: '/foo',
+        responseType: 'json',
+        transitional: {silentJSONParsing: false}
+      }).then(function () {
+        done(new Error('should fail'));
+      }, function (err) {
+        thrown = err;
+      });
+
+      getAjaxRequest().then(function (request) {
+        request.respondWith({
+          status: 200,
+          responseText: '{foo": "bar"}' // JSON SyntaxError
+        });
+
+        setTimeout(function () {
+          expect(thrown).toBeTruthy();
+          expect(thrown.name).toContain('SyntaxError');
+          expect(thrown.code).toEqual(AxiosError.ERR_BAD_RESPONSE);
+          done();
+        }, 100);
+      });
+    }
+  );
+
+  it('should send data as JSON if request content-type is application/json', function (done) {
+    var response;
+
+    axios.post('/foo', 123, {headers: {'Content-Type': 'application/json'}}).then(function (_response) {
+      response = _response;
+    }, function (err) {
+      done(err);
+    });
+
+    getAjaxRequest().then(function (request) {
+      request.respondWith({
+        status: 200,
+        responseText: ''
+      });
+
+      setTimeout(function () {
+        expect(response).toBeTruthy();
+        expect(request.requestHeaders['Content-Type']).toBe('application/json');
+        expect(JSON.parse(request.params)).toBe(123);
+        done();
+      }, 100);
+    });
+  });
+
+  it('should not assume JSON if responseType is not `json`', function (done) {
+    var response;
+
+    axios.get('/foo', {
+      responseType: 'text',
+      transitional: {
+        forcedJSONParsing: false
+      }
+    }).then(function (_response) {
+      response = _response;
+    }, function (err) {
+      done(err);
+    });
+
+    var rawData = '{"x":1}';
+
+    getAjaxRequest().then(function (request) {
+      request.respondWith({
+        status: 200,
+        responseText: rawData
+      });
+
+      setTimeout(function () {
+        expect(response).toBeTruthy();
+        expect(response.data).toBe(rawData);
         done();
       }, 100);
     });
@@ -88,6 +174,26 @@ describe('transform', function () {
 
     getAjaxRequest().then(function (request) {
       expect(request.requestHeaders['X-Authorization']).toEqual(token);
+      done();
+    });
+  });
+
+  it('should normalize \'content-type\' header when using a custom transformRequest', function (done) {
+    var data = {
+      foo: 'bar'
+    };
+
+    axios.post('/foo', data, {
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      transformRequest: [
+        function () {
+          return 'aa=44'
+        }
+      ]
+    });
+
+    getAjaxRequest().then(function (request) {
+      expect(request.requestHeaders['Content-Type']).toEqual('application/x-www-form-urlencoded');
       done();
     });
   });

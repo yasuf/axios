@@ -43,6 +43,17 @@ describe('requests', function () {
     });
   });
 
+  it('should allow data', function (done) {
+    axios.delete('/foo', {
+      data: { foo: 'bar' }
+    });
+
+    getAjaxRequest().then(function (request) {
+      expect(request.params).toBe(JSON.stringify({ foo: 'bar' }));
+      done();
+    });
+  });
+
   it('should make an http request', function (done) {
     axios('/foo');
 
@@ -52,8 +63,53 @@ describe('requests', function () {
     });
   });
 
+  describe('timeouts', function(){
+    beforeEach(function () {
+      jasmine.clock().install();
+    });
+
+    afterEach(function () {
+      jasmine.clock().uninstall();
+    });
+
+    it('should handle timeouts', function (done) {
+      axios({
+        url: '/foo',
+        timeout: 100
+      }).then(function () {
+        fail(new Error('timeout error not caught'));
+      }, function (err) {
+        expect(err instanceof Error).toBe(true);
+        expect(err.code).toEqual('ECONNABORTED');
+        done();
+      });
+
+      jasmine.Ajax.requests.mostRecent().responseTimeout();
+    });
+
+    describe('transitional.clarifyTimeoutError', function () {
+      it('should activate throwing ETIMEDOUT instead of ECONNABORTED on request timeouts', function (done) {
+        axios({
+          url: '/foo',
+          timeout: 100,
+          transitional: {
+            clarifyTimeoutError: true
+          }
+        }).then(function () {
+          fail(new Error('timeout error not caught'));
+        }, function (err) {
+          expect(err instanceof Error).toBe(true);
+          expect(err.code).toEqual('ETIMEDOUT');
+          done();
+        });
+
+        jasmine.Ajax.requests.mostRecent().responseTimeout();
+      });
+    });
+  });
+
   it('should reject on network errors', function (done) {
-    // disable jasmine.Ajax since we're hitting a non-existant server anyway
+    // disable jasmine.Ajax since we're hitting a non-existent server anyway
     jasmine.Ajax.uninstall();
 
     var resolveSpy = jasmine.createSpy('resolve');
@@ -252,7 +308,7 @@ describe('requests', function () {
     });
   });
 
-  it('should make cross domian http request', function (done) {
+  it('should make cross domain http request', function (done) {
     var response;
 
     axios.post('www.someurl.com/foo').then(function(res){
@@ -424,5 +480,47 @@ describe('requests', function () {
       expect(request.params).toBe('param1=value1&param2=value2');
       done();
     });
+  });
+
+  it('should support HTTP protocol', function (done) {
+    var response;
+
+    axios.get('/foo')
+      .then(function (res) {
+        response = res
+      })
+
+    getAjaxRequest().then(function (request) {
+      expect(request.method).toBe('GET');
+      request.respondWith({
+        status: 200
+      });
+      done();
+    });
+  });
+
+  it('should support HTTPS protocol', function (done) {
+    var response;
+    axios.get('https://www.google.com')
+      .then(function (res) {
+        response = res
+      })
+
+    getAjaxRequest().then(function (request) {
+      expect(request.method).toBe('GET');
+      request.respondWith({
+        status: 200
+      });
+      done();
+    });
+  });
+
+  it('should return unsupported protocol error message', function () {
+    return axios.get('ftp:localhost')
+      .then(function(){
+        fail('Does not throw');
+      }, function (error) {
+        expect(error.message).toEqual('Unsupported protocol ftp:')
+      })
   });
 });
